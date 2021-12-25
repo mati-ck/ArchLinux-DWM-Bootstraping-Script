@@ -13,7 +13,7 @@ while getopts ":a:r:b:p:h" o; do case "${o}" in
 	*) printf "Invalid option: -%s\\n" "$OPTARG" && exit 1 ;;
 esac done
 
-[ -z "$dotfilesrepo" ] && dotfilesrepo="https://github.com/mati-ck/dotfiles"
+[ -z "$dotfilesrepo" ] && dotfilesrepo="https://github.com/mati-ck/dotfiles.git"
 [ -z "$progsfile" ] && progsfile="https://raw.githubusercontent.com/mati-ck/ArchLinux-DWM-Bootstraping-Script/main/progs.csv"
 [ -z "$aurhelper" ] && aurhelper="yay"
 [ -z "$repobranch" ] && repobranch="master"
@@ -186,7 +186,7 @@ manualinstall yay-bin || error "Failed to install AUR helper."
 
 installationloop
 
-dialog --title "LARBS Installation" --infobox "Finally, installing \`libxft-bgra\` to enable color emoji in suckless software without crashes." 5 70
+dialog --title "LARBS Installation" --infobox "Finally, installing \`libxft-bgra\` to enable color emoji in suckless software without crashes. Please wait a second." 5 70
 yes | sudo -u "$name" $aurhelper -S libxft-bgra-git >/dev/null 2>&1
 
 # Install the dotfiles in the user's home directory
