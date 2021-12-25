@@ -1,7 +1,7 @@
 #!/bin/sh
 # ArchLinux DWM Bootscrapping Script
 # based on Luke's Auto Rice Boostrapping Script (LARBS)
-# by Mateusz Pajewski <mati@pajewski.dev>
+# by Mateusz Pajewski <mati@pajewski.dev>mati
 # License: GNU GPLv3
 
 while getopts ":a:r:b:p:h" o; do case "${o}" in
@@ -97,6 +97,34 @@ manualinstall() { # Installs $1 manually. Used only for AUR helper here.
 		{ cd "$repodir/$1" || return 1 ; sudo -u "$name" git pull --force origin master;}
 	cd "$repodir/$1"
 	sudo -u "$name" -D "$repodir/$1" makepkg --noconfirm -si >/dev/null 2>&1 || return 1
+}
+
+maininstall() { # Installs all needed programs from main repo.
+	dialog --title "Bootstraping Script Installation" --infobox "Installing \`$1\` ($n of $total). $1 $2" 5 70
+	installpkg "$1"
+}
+
+gitmakeinstall() {
+	progname="$(basename "$1" .git)"
+	dir="$repodir/$progname"
+	dialog --title "Bootstraping Script Installation" --infobox "Installing \`$progname\` ($n of $total) via \`git\` and \`make\`. $(basename "$1") $2" 5 70
+	sudo -u "$name" git clone --depth 1 "$1" "$dir" >/dev/null 2>&1 || { cd "$dir" || return 1 ; sudo -u "$name" git pull --force origin master;}
+	cd "$dir" || exit 1
+	make >/dev/null 2>&1
+	make install >/dev/null 2>&1
+	cd /tmp || return 1 ;
+}
+
+aurinstall() { \
+	dialog --title "Bootstraping Script Installation" --infobox "Installing \`$1\` ($n of $total) from the AUR. $1 $2" 5 70
+	echo "$aurinstalled" | grep -q "^$1$" && return 1
+	sudo -u "$name" $aurhelper -S --noconfirm "$1" >/dev/null 2>&1
+}
+
+pipinstall() { \
+	dialog --title "Bootstraping Script Installation" --infobox "Installing the Python package \`$1\` ($n of $total). $1 $2" 5 70
+	[ -x "$(command -v "pip")" ] || installpkg python-pip >/dev/null 2>&1
+	yes | pip install "$1"
 }
 
 installationloop() { \
