@@ -132,6 +132,7 @@ installationloop() { \
 	total=$(wc -l < /tmp/progs.csv)
 	aurinstalled=$(pacman -Qqm)
 	while IFS=, read -r disabled tag program comment; do
+		n=$((n+1))
 		case "$disabled" in
 			"1") ;;
 			*) 	echo "$comment" | grep -q "^\".*\"$" && comment="$(echo "$comment" | sed "s/\(^\"\|\"$\)//g")"
