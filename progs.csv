@@ -64,3 +64,4 @@
 ,,socat,"is a utility which establishes two byte streams and transfers data between them."
 ,,moreutils,"is a collection of useful unix tools."
 ,,fortune-mod,"is a simple program that displays random poignant."
+,,alacritty,"is a simple, GPU-accelerated terminal emulator written in Rust."
