@@ -135,15 +135,13 @@ installationloop() { \
 		n=$((n+1))
 		case "$disabled" in
 			"1") ;;
-			*) case "$tag" in
-					echo "$comment" | grep -q "^\".*\"$" && comment="$(echo "$comment" | sed "s/\(^\"\|\"$\)//g")"
-					case "$tag" in
-						"A") aurinstall "$program" "$comment" ;;
-						"G") gitmakeinstall "$program" "$comment" ;;
-						"P") pipinstall "$program" "$comment" ;;
-						*) maininstall "$program" "$comment" ;;
-					esac
-		        esac;;
+			*) 	echo "$comment" | grep -q "^\".*\"$" && comment="$(echo "$comment" | sed "s/\(^\"\|\"$\)//g")"
+				case "$tag" in
+					"A") aurinstall "$program" "$comment" ;;
+					"G") gitmakeinstall "$program" "$comment" ;;
+					"P") pipinstall "$program" "$comment" ;;
+					*) maininstall "$program" "$comment" ;;
+				esac
 		esac
 	done < /tmp/progs.csv ;
 }
