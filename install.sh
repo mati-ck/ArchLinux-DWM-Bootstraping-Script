@@ -99,6 +99,41 @@ manualinstall() { # Installs $1 manually. Used only for AUR helper here.
 	sudo -u "$name" -D "$repodir/$1" makepkg --noconfirm -si >/dev/null 2>&1 || return 1
 }
 
+installationloop() { \
+	([ -f "$progsfile" ] && cp "$progsfile" /tmp/progs.csv) || curl -Ls "$progsfile" | sed '/^#/d' > /tmp/progs.csv
+	total=$(wc -l < /tmp/progs.csv)
+	aurinstalled=$(pacman -Qqm)
+	while IFS=, read -r tag program comment; do
+		n=$((n+1))
+		echo "$comment" | grep -q "^\".*\"$" && comment="$(echo "$comment" | sed "s/\(^\"\|\"$\)//g")"
+		case "$tag" in
+			"A") aurinstall "$program" "$comment" ;;
+			"G") gitmakeinstall "$program" "$comment" ;;
+			"P") pipinstall "$program" "$comment" ;;
+			*) maininstall "$program" "$comment" ;;
+		esac
+	done < /tmp/progs.csv ;
+}
+
+putgitrepo() { # Downloads a gitrepo $1 and places the files in $2 only overwriting conflicts
+	dialog --infobox "Downloading and installing config files..." 4 60
+	[ -z "$3" ] && branch="master" || branch="$repobranch"
+	dir=$(mktemp -d)
+	[ ! -d "$2" ] && mkdir -p "$2"
+	chown "$name":wheel "$dir" "$2"
+	sudo -u "$name" git clone --recursive -b "$branch" --depth 1 --recurse-submodules "$1" "$dir" >/dev/null 2>&1
+	sudo -u "$name" cp -rfT "$dir" "$2"
+	}
+
+systembeepoff() { dialog --infobox "Getting rid of that retarded error beep sound..." 10 50
+	rmmod pcspkr
+	echo "blacklist pcspkr" > /etc/modprobe.d/nobeep.conf ;}
+
+finalize(){ \
+	dialog --infobox "Preparing welcome message..." 4 50
+	dialog --title "All done!" --msgbox "Congrats! Provided there were no hidden errors, the script completed successfully and all the programs and configuration files should be in place.\\n\\nTo run the new graphical environment, log out and log back in as your new user, then run the command \"startx\" to start the graphical environment (it will start automatically in tty1).\\n\\n.t Luke" 12 80
+	}
+
 
 ### THE ACTUAL SCRIPT ###
 
@@ -148,4 +183,60 @@ sed -i "s/^#ParallelDownloads = 8$/ParallelDownloads = 5/;s/^#Color$/Color/" /et
 sed -i "s/-j2/-j$(nproc)/;s/^#MAKEFLAGS/MAKEFLAGS/" /etc/makepkg.conf
 
 manualinstall yay-bin || error "Failed to install AUR helper."
+
+installationloop
+
+dialog --title "LARBS Installation" --infobox "Finally, installing \`libxft-bgra\` to enable color emoji in suckless software without crashes." 5 70
+yes | sudo -u "$name" $aurhelper -S libxft-bgra-git >/dev/null 2>&1
+
+# Install the dotfiles in the user's home directory
+putgitrepo "$dotfilesrepo" "/home/$name" "$repobranch"
+rm -f "/home/$name/README.md" "/home/$name/LICENSE" "/home/$name/FUNDING.yml"
+
+# Create default urls file if none exists.
+[ ! -f "/home/$name/.config/newsboat/urls" ] && echo "http://lukesmith.xyz/rss.xml
+https://notrelated.libsyn.com/rss
+https://www.youtube.com/feeds/videos.xml?channel_id=UC2eYFnH61tmytImy1mTYvhA \"~Luke Smith (YouTube)\"
+https://www.archlinux.org/feeds/news/" > "/home/$name/.config/newsboat/urls"
+# make git ignore deleted LICENSE & README.md files
+git update-index --assume-unchanged "/home/$name/README.md" "/home/$name/LICENSE" "/home/$name/FUNDING.yml"
+
+# Most important command! Get rid of the beep!
+systembeepoff
+
+# Make zsh the default shell for the user.
+chsh -s /bin/zsh "$name" >/dev/null 2>&1
+sudo -u "$name" mkdir -p "/home/$name/.cache/zsh/"
+
+# dbus UUID must be generated for Artix runit.
+dbus-uuidgen > /var/lib/dbus/machine-id
+
+# Use system notifications for Brave on Artix
+echo "export \$(dbus-launch)" > /etc/profile.d/dbus.sh
+
+# Tap to click
+[ ! -f /etc/X11/xorg.conf.d/40-libinput.conf ] && printf 'Section "InputClass"
+        Identifier "libinput touchpad catchall"
+        MatchIsTouchpad "on"
+        MatchDevicePath "/dev/input/event*"
+        Driver "libinput"
+	# Enable left mouse button by tapping
+	Option "Tapping" "on"
+EndSection' > /etc/X11/xorg.conf.d/40-libinput.conf
+
+# Fix fluidsynth/pulseaudio issue.
+grep -q "OTHER_OPTS='-a pulseaudio -m alsa_seq -r 48000'" /etc/conf.d/fluidsynth ||
+	echo "OTHER_OPTS='-a pulseaudio -m alsa_seq -r 48000'" >> /etc/conf.d/fluidsynth
+
+# Start/restart PulseAudio.
+pkill -15 -x 'pulseaudio'; sudo -u "$name" pulseaudio --start
+
+# This line, overwriting the `newperms` command above will allow the user to run
+# serveral important commands, `shutdown`, `reboot`, updating, etc. without a password.
+newperms "%wheel ALL=(ALL) ALL #LARBS
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/shutdown,/usr/bin/reboot,/usr/bin/systemctl suspend,/usr/bin/wifi-menu,/usr/bin/mount,/usr/bin/umount,/usr/bin/pacman -Syu,/usr/bin/pacman -Syyu,/usr/bin/packer -Syu,/usr/bin/packer -Syyu,/usr/bin/systemctl restart NetworkManager,/usr/bin/rc-service NetworkManager restart,/usr/bin/pacman -Syyu --noconfirm,/usr/bin/loadkeys,/usr/bin/paru,/usr/bin/pacman -Syyuw --noconfirm"
+
+# Last message! Install complete!
+finalize
+clear
 
