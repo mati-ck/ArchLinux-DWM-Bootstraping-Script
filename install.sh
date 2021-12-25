@@ -132,7 +132,6 @@ installationloop() { \
 	total=$(wc -l < /tmp/progs.csv)
 	aurinstalled=$(pacman -Qqm)
 	while IFS=, read -r disabled tag program comment; do
-		n=$((n+1))
 		case "$disabled" in
 			"1") ;;
 			*) 	echo "$comment" | grep -q "^\".*\"$" && comment="$(echo "$comment" | sed "s/\(^\"\|\"$\)//g")"
@@ -143,7 +142,7 @@ installationloop() { \
 					*) maininstall "$program" "$comment" ;;
 				esac
 		esac
-	done < /tmp/progs.csv ;
+	done < <(tail -n +2 /tmp/progs.csv) ;
 }
 
 putgitrepo() { # Downloads a gitrepo $1 and places the files in $2 only overwriting conflicts
